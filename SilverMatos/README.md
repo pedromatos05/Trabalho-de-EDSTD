@@ -305,3 +305,76 @@ Após conclusão, ficas com:
                        │      rotten_tomatoes           │
                        │  Consultável por SQL engines   │
                        └───────────────────────────────┘
+``` python 
+from pyspark.sql import SparkSession
+
+# --- 1. CONFIGURAÇÃO DA SPARKSESSION (com Delta) ---
+print("A iniciar a SparkSession com o pacote Delta Lake...")
+
+warehouse_location = "hdfs://hdfs-nn:9000/warehouse"
+hive_uris = "thrift://hive-metastore:9083"
+
+spark = (
+    SparkSession.builder
+    .appName("Delta Converter")
+    .config("spark.sql.warehouse.dir", warehouse_location)
+    .config("hive.metastore.uris", hive_uris)
+    # Configuração essencial do Delta
+    .config("spark.jars.packages", "io.delta:delta-core_2.12:2.4.0")
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+    .enableHiveSupport()
+    .getOrCreate()
+)
+
+print("Sessão Spark com Delta pronta.")
+
+# --- 2. COMANDO DE CONVERSÃO ---
+print("A converter a tabela Parquet 'silver.rotten_tomatoes' para Delta Lake...")
+
+try:
+    spark.sql("""
+        CONVERT TO DELTA silver.rotten_tomatoes
+        PARTITIONED BY (release_year INT)
+    """)
+    print("Conversão concluída com sucesso!")
+
+except Exception as e:
+    print(f" Ocorreu um erro durante a conversão.")
+    print(e)
+
+# Opcional: spark.stop()
+
+```
+
+📝 Explicação do Código
+
+Configuração da SparkSession
+
+Cria uma sessão Spark com suporte Delta Lake.
+
+Adiciona o pacote Delta (delta-core_2.12) e as extensões necessárias.
+
+Habilita suporte ao Hive para tabelas externas.
+
+Configura o warehouse HDFS e o Hive Metastore.
+
+Comando de conversão
+
+O CONVERT TO DELTA não reescreve os ficheiros Parquet existentes.
+
+Adiciona o diretório _delta_log para adotar os ficheiros como tabela Delta.
+
+Como a tabela é particionada, é necessário informar a coluna release_year.
+
+Execução segura
+
+Envolve o comando em try/except para capturar possíveis erros (ex.: tabela inexistente ou formato incorreto).
+
+Finalização
+
+Opcional: spark.stop() para encerrar a sessão Spark.
+
+
+
+
+
